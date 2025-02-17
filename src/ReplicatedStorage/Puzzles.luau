@@ -25,39 +25,39 @@ end
 local module = {
 	{
 		Title = "Lines",
-		Picross = Picross.fromClues(Picross.fromBoolGrid(Grid.fromTable({
+		Picross = Picross.fromBoolGrid(Grid.fromTable({
 			{true, 	true, 	true},
 			{false, false, 	false},
 			{true,	true, 	true}
-		})).clues)
+		}))
 	},
 	{
 		Title = "Cross",
-		Picross = Picross.fromClues(Picross.fromBoolGrid(Grid.fromTable({
+		Picross = Picross.fromBoolGrid(Grid.fromTable({
 			{true,	false, 	true},
 			{false, false, 	false},
 			{true, 	false, 	true}
-		})).clues)
+		}))
 	},
 	{
 		Title = "Random 10x10",
-		Picross = Picross.fromClues(Picross.fromBoolGrid(Grid.fromTable(generateRandomBoolTable(10, 10, .8))).clues)
+		Picross = Picross.fromBoolGrid(Grid.fromTable(generateRandomBoolTable(10, 10, .8)))
 	},
 	{
 		Title = "Random 15x15",
-		Picross = Picross.fromClues(Picross.fromBoolGrid(Grid.fromTable(generateRandomBoolTable(15, 15, .8))).clues)
+		Picross = Picross.fromBoolGrid(Grid.fromTable(generateRandomBoolTable(15, 15, .8)))
 	},
 	{
 		Title = "Random 11x11",
-		Picross = Picross.fromClues(Picross.fromBoolGrid(Grid.fromTable(generateRandomBoolTable(11 , 11, .8))).clues)
+		Picross = Picross.fromBoolGrid(Grid.fromTable(generateRandomBoolTable(11 , 11, .8)))
 	},
 	{
 		Title = "Random 10x10 2",
-		Picross = Picross.fromClues(Picross.fromBoolGrid(Grid.fromTable(generateRandomBoolTable(10, 10, .75))).clues)
+		Picross = Picross.fromBoolGrid(Grid.fromTable(generateRandomBoolTable(10, 10, .75)))
 	},
 	{
 		Title = "Random 10x10 3",
-		Picross = Picross.fromClues(Picross.fromBoolGrid(Grid.fromTable(generateRandomBoolTable(10, 10, .75))).clues)
+		Picross = Picross.fromBoolGrid(Grid.fromTable(generateRandomBoolTable(10, 10, .75)))
 	},
 }
 

@@ -1,14 +1,16 @@
 --!strict
-
 --- IMPORTS ---
 local Grid = require(game.ReplicatedStorage.Grid)
 local TableUtil = require(game.ReplicatedStorage.TableUtil)
 
 --- TYPE HEADER ---
 -- type aliases
-type Grid<T> = Grid.Grid<T> 
+type Grid<T> = Grid.Grid<T>
 export type CellValue = "Marked" | "Unmarked" | "Crossed"
-type Listener = {	update: (self: any, number?, number?) -> (),}
+type Listener = {
+	update: (self: any, number?, number?) -> (),
+	[any]: any
+}
 
 -- types
 export type Clues = {
@@ -18,43 +20,41 @@ export type Clues = {
 type PuzzleObj = {
 	grid: Grid.Grid<CellValue>,
 	clues: Clues,
-	
-	listeners: { {
-		update: (self: unknown, number?, number?) -> (),
-		[any]: any
-	} }
+	solvedGrid: Grid.Grid<CellValue>?,
+
+	listeners: { Listener }
 }
 
 type PuzzleImpl = {
 	__index: PuzzleImpl,
-	
+
 	createClues: (grid: Grid<CellValue>) -> (Clues),
-	
+
 	fromClues: (clues: Clues) -> (Puzzle),
 	fromBoolGrid: (grid: Grid<boolean>) -> (Puzzle),
 	fromGrid: (grid: Grid<CellValue>) -> (Puzzle),
-	
+
 	getGrid: (self: Puzzle) -> (Grid<CellValue>),
 	getClues: (self: Puzzle) -> (Clues),
 
 	set: (self: Puzzle, row: number, column: number, value: CellValue) -> (Puzzle),
 	get: (self: Puzzle, row: number, column: number) -> (CellValue),
-	
+
 	isMarked: (self: Puzzle, row: number, column: number) -> (boolean),
 	mark: (self: Puzzle, row: number, column: number) -> (Puzzle),
 	unmark: (self: Puzzle, row: number, column: number) -> (Puzzle),
 	toggle: (self: Puzzle, row: number, column: number) -> (Puzzle),
-	
+
 	isCrossed: (self: Puzzle, row: number, column: number) -> (boolean),
 	cross: (self: Puzzle, row: number, column: number) -> (Puzzle),
 	uncross: (self: Puzzle, row: number, column: number) -> (Puzzle),
 	toggleCross: (self: Puzzle, row: number, column: number) -> (Puzzle),
-	
+
 	isSolved: (self: Puzzle) -> (boolean),
-	
+
 	isRowSatisfied: (self: Puzzle, row: number) -> (boolean),
 	isColumnSatisfied: (self: Puzzle, column: number) -> (boolean),
-	
+
 	addListener: (self: Puzzle, listener: any) -> (),
 	updateListeners: (self: Puzzle) -> (),
 }
@@ -113,11 +113,12 @@ function puzzle.fromBoolGrid(grid): Puzzle
 			tbl[i][j] = if grid:get(i, j) == true then "Marked" else "Unmarked"
 		end
 	end
-	
+
 	local cellGrid = Grid.fromTable(tbl)
-	
+
 	local self = {
-		grid = cellGrid,
+		grid = Grid.constructEmptyGrid(grid:rows(), grid:columns(), "Unmarked"),
+		solvedGrid = cellGrid,
 		clues = puzzle.createClues(cellGrid),
 		listeners = {}
 	}
@@ -127,7 +128,8 @@ end
 
 function puzzle.fromGrid(grid): Puzzle
 	local self = {
-		grid = grid,
+		grid = Grid.constructEmptyGrid(grid:rows(), grid:columns(), "Unmarked"),
+		solvedGrid = grid,
 		clues = puzzle.createClues(grid),
 		listeners = {}
 	}
@@ -136,6 +138,7 @@ function puzzle.fromGrid(grid): Puzzle
 end
 function puzzle.fromClues(clues: Clues): Puzzle
 	local self = {
+		solvedGrid = nil,
 		grid = Grid.constructEmptyGrid(#clues.rows, #clues.columns, "Unmarked"),
 		clues = clues,
 		listeners = {}
@@ -196,9 +199,12 @@ function puzzle:isSolved(): boolean
 	return true
 end
 
-
 function puzzle:addListener(listener)
-	table.insert(self.listeners, listener)
+	if listener.update ~= nil then
+		table.insert(self.listeners, listener)
+	else
+		warn("Tried to add listener that is not listener")
+	end
 end
 
 function puzzle:updateListeners()
