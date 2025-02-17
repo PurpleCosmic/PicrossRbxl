@@ -2,13 +2,6 @@
 --- CONST ---
 local PADDING = 5 / 100
 
---- SERVICES ---
-local UserInputService = game:GetService("UserInputService")
-
---- IMPORTS ---
-local Picross = require(game.ReplicatedStorage.Picross)
-
-
 -- VARS --
 local GameGui = game.StarterGui.GameFrame.Frame -- only for types
 
@@ -18,14 +11,22 @@ local mouse = player:GetMouse()
 local toggleState: Picross.CellValue | "Uncross" = "Marked"
 local mouseClicking = false
 
+--- SERVICES ---
+local UserInputService = game:GetService("UserInputService")
+
+--- IMPORTS ---
+local Picross = require(game.ReplicatedStorage.Picross)
+local GridView = require(player.PlayerScripts.init.GridView)
 
 --- TYPE HEADER ---
 -- type aliases
 -- types
 type PicrossViewObj = {
 	puzzle: Picross.Puzzle,
+	gridView: GridView.GridView<Picross.CellValue>,
 	baseFrame: typeof(GameGui)
 }
+
 type PicrossViewImpl = {
 	__index: PicrossViewImpl,
 	create: (frame: typeof(GameGui), Puzzle: Picross.Puzzle) -> (PicrossView),
@@ -37,10 +38,8 @@ type PicrossViewImpl = {
 	getColumnClueFrame: (self: PicrossView) -> (typeof(GameGui.ColumnClueFrame)),
 	getGridFrame: (self: PicrossView) -> (typeof(GameGui.PuzzleFrame)),
 	
-	clear: (self: PicrossView) -> (),
-	updateCell: (self: PicrossView, row: number, col: number) -> (),
 	update: (self: PicrossView, row: number?, col: number?) -> (),
-	
+
 	renderClues: (self: PicrossView) -> (),
 	renderGrid: (self: PicrossView) -> (),
 	render: (self: PicrossView) -> (),
@@ -53,8 +52,60 @@ local picrossView: PicrossViewImpl = {} :: PicrossViewImpl
 picrossView.__index = picrossView
 -- STATIC METHODS -
 function picrossView.create(frame, puzzle)
+	local gridFrame = frame.baseFrame.PuzzleFrame
+	local function setupCellController(row: number, col: number)
+		frame.MouseButton1Down:Connect(function()
+			puzzle:toggle(row, col)
+			mouseClicking = true
+			toggleState = if puzzle:isMarked(row, col) then "Marked" else "Unmarked"
+		end)
+		frame.MouseEnter:Connect(function()
+			if not mouseClicking then return end
+			local cellValue: Picross.CellValue = puzzle:get(row, col)
+			if cellValue == "Unmarked" then
+				if toggleState == "Marked" then
+					puzzle:mark(row, col)
+				elseif toggleState == "Crossed" then
+					puzzle:cross(row, col)
+				end
+			elseif cellValue == "Crossed" then
+				if toggleState == "Uncross" then
+					puzzle:uncross(row, col)
+				end
+			elseif cellValue == "Marked" then
+				if toggleState == "Unmarked" then
+					puzzle:unmark(row, col)
+				end
+			end		
+		end)
+		frame.MouseButton2Down:Connect(function() 
+			puzzle:toggleCross(row, col)
+			mouseClicking = true
+			toggleState = if puzzle:isCrossed(row, col) then "Crossed" else "Uncross"
+		end)
+		frame.MouseButton1Up:Connect(function() mouseClicking = false end)
+		frame.MouseButton2Up:Connect(function() mouseClicking = false end)
+	end
+
 	return setmetatable( {
 		puzzle = puzzle,
+		gridView = GridView.create(gridFrame, puzzle.grid, {
+			["Marked"] = function(row, col)
+				local frame = gridFrame.UIGridLayout.ACTIVE_TEMPLATE:Clone()
+				setupCellController(row, col)
+				return frame
+			end,
+			["Unmarked"] = function(row, col)
+				local frame = gridFrame.UIGridLayout.INACTIVE_TEMPLATE:Clone()
+				setupCellController(row, col)
+				return frame
+			end,
+			["Crossed"] = function(row, col)
+				local frame = gridFrame.UIGridLayout.CROSSED_TEMPLATE:Clone()
+				setupCellController(row, col)
+				return frame
+			end
+		}, {padding = PADDING}),
 		baseFrame = frame
 	} , picrossView)
 end
@@ -68,63 +119,6 @@ function picrossView:getRowClueFrame()
 end
 function picrossView:getColumnClueFrame()
 	return self.baseFrame.ColumnClueFrame
-end
-
-function picrossView:clear()
-	for _, i in self:getGridFrame():GetChildren() do
-		if not i:IsA("UIGridLayout") then
-			i:Destroy()
-		end
-	end
-end
-
-function picrossView:removeCell(row: number, col: number)
-	self:getGridFrame():FindFirstChild(tostring(row * self.puzzle:getGrid():columns() + col)):Destroy()
-end
-
-function picrossView:createCell(row: number, col: number)
-	local gridLayout = self:getGridFrame().UIGridLayout
-	local frame = if self.puzzle:isMarked(row, col) 
-			then gridLayout.ACTIVE_TEMPLATE:Clone() 
-		else if self.puzzle:isCrossed(row, col) 
-			then gridLayout.CROSSED_TEMPLATE:Clone()
-			else gridLayout.INACTIVE_TEMPLATE:Clone()
-	frame.LayoutOrder = row * self.puzzle:getGrid():columns() + col
-	frame.Name = frame.LayoutOrder
-
-	frame.MouseButton1Down:Connect(function()
-		self.puzzle:toggle(row, col)
-		mouseClicking = true
-		toggleState = if self.puzzle:isMarked(row, col) then "Marked" else "Unmarked"
-	end)
-	frame.MouseEnter:Connect(function()
-		if not mouseClicking then return end
-		local cellValue: Picross.CellValue = self.puzzle:get(row, col)
-		if cellValue == "Unmarked" then
-			if toggleState == "Marked" then
-				self.puzzle:mark(row, col)
-			elseif toggleState == "Crossed" then
-				self.puzzle:cross(row, col)
-			end
-		elseif cellValue == "Crossed" then
-			if toggleState == "Uncross" then
-				self.puzzle:uncross(row, col)
-			end
-		elseif cellValue == "Marked" then
-			if toggleState == "Unmarked" then
-				self.puzzle:unmark(row, col)
-			end
-		end		
-	end)
-	frame.MouseButton2Down:Connect(function() 
-		self.puzzle:toggleCross(row, col)
-		mouseClicking = true
-		toggleState = if self.puzzle:isCrossed(row, col) then "Crossed" else "Uncross"
-	end)
-	frame.MouseButton1Up:Connect(function() mouseClicking = false end)
-	frame.MouseButton2Up:Connect(function() mouseClicking = false end)
-	
-	frame.Parent = self:getGridFrame()
 end
 
 function picrossView:renderClues()
@@ -214,21 +208,7 @@ function picrossView:renderClues()
 end
 
 function picrossView:renderGrid()
-	self:clear()
-	local gridLayout = self:getGridFrame().UIGridLayout
-	
-	local row = self.puzzle:getGrid():rows()
-	local col = self.puzzle:getGrid():columns()
-	
-	gridLayout.CellPadding = UDim2.fromScale(PADDING / col, PADDING / row)
-	gridLayout.CellSize = UDim2.fromScale((1 - PADDING + PADDING/col)/col, (1 - PADDING + PADDING/row)/row)
-
-
-	for i = 1, row do
-		for j = 1, col do		
-			self:createCell(i, j)
-		end
-	end
+	self.gridView:render()
 end
 
 function picrossView:render()
@@ -238,21 +218,17 @@ end
 
 function picrossView:update(row, column)
 	if row and column then
-		self:updateCell(row, column)
+		self.gridView:update(row, column)
 		self:renderClues() -- TODO make this take row and columns as args
 	else
 		self:render()
 	end
 end
-function picrossView:updateCell(row, col)
-	self:removeCell(row, col)
-	self:createCell(row, col)
-end
 
-mouse.Button1Up:Connect(function() 
+mouse.Button1Up:Connect(function()
 	mouseClicking = false
 end)
-mouse.Button2Up:Connect(function() 
+mouse.Button2Up:Connect(function()
 	mouseClicking = false
 end)
 
